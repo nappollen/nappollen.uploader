@@ -74,7 +74,13 @@ namespace Nappollen.Uploader.Editor
 
             void HandleUserError(ApiModelContainer<APIUser> container)
             {
-                tcs.TrySetException(new BuilderException($"SDK Error: {container.Error}"));
+                // Attention : sur le chemin d'erreur, le SDK passe un conteneur NULL
+                // (InitialFetchCurrentUser fait `onError(c as ApiModelContainer<APIUser>)`
+                // avec un ApiDictContainer -> null). Ne pas déréférencer sans garde.
+                var error = container?.Error ?? "Unknown error (null response container)";
+                var code = container?.Code ?? 0;
+                Output.Error(nameof(WorldBuilder) + " User", $"Fetch failed: code={code}, {error}");
+                tcs.TrySetException(new BuilderException($"SDK Error: {error}"));
             }
 
             void HandleUserSuccess(ApiModelContainer<APIUser> container)
@@ -86,6 +92,11 @@ namespace Nappollen.Uploader.Editor
             {
                 Output.Log(nameof(WorldBuilder), "Make API in Online Mode...");
                 API.SetOnlineMode(true);
+
+                // En batch mode, active les logs de la catégorie "API" du SDK pour voir
+                // le détail des requêtes/réponses (dont "NOT Authenticated: ...").
+                if (Application.isBatchMode)
+                    VRC.Core.Logger.EnableCategory("API");
 
                 APIUser.InitialFetchCurrentUser(HandleUserSuccess, HandleUserError);
 
