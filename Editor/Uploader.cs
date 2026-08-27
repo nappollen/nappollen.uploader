@@ -1,0 +1,36 @@
+using UnityEditor;
+using System.Threading.Tasks;
+using VRC.SDKBase.Editor;
+using UnityEngine;
+
+namespace Nappollen.Uploader.Editor
+{
+	public static class UploaderEditor
+	{
+
+		[MenuItem("Tools/Uploader/Build")]
+		private static async Task ExecuteBuild()
+			=> await Build();
+
+		public static async Task Build()
+		{
+			Scenes.Open();
+			Credentials.Import();
+
+			Builder builder;
+			if (WorldBuilderExtension.TryMake(out var wb))
+				builder = wb;
+			else if (AvatarBuilderExtension.TryMake(out var ab))
+				builder = ab;
+			else throw new BuilderException("No compatible builder.");
+
+			if (builder == null)
+				throw new BuilderException("Incorrect builder.");
+
+			Debug.Log($"Building with {builder.GetType().FullName}...");
+			await builder.Build();
+			Debug.Log($"Build finished.");
+		}
+	}
+}
+

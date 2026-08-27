@@ -1,0 +1,21 @@
+{
+    "name": "Nappollen.Uploader.Editor",
+    "rootNamespace": "Nappollen.Uploader",
+    "references": [
+        "Nappollen.Uploader.Runtime",
+        "VRC.SDKBase.Editor",
+        "VRC.SDK3.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
+
