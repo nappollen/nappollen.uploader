@@ -34,8 +34,10 @@ namespace Nappollen.Uploader.Editor
         public VRC_SceneDescriptor descriptor;
         public override async Task Build()
         {
+            Output.Log(nameof(WorldBuilder), $"Instanting {nameof(VRCSdkControlPanel)}...");
             var window = ScriptableObject.CreateInstance<VRCSdkControlPanel>();
 
+            Output.Log(nameof(WorldBuilder), $"Await 5secs...");
             await Task.Delay(5000);
 
             if (!VRCSdkControlPanel.TryGetBuilder(out IVRCSdkWorldBuilderApi builder))
@@ -58,6 +60,7 @@ namespace Nappollen.Uploader.Editor
 
             try
             {
+                Output.Log(nameof(WorldBuilder), $"Make API in Online Mode...");
                 API.SetOnlineMode(true);
                 APIUser.InitialFetchCurrentUser(HandleUserSuccess, HandleUserError);
                 if (!await tcs.Task)
@@ -110,6 +113,8 @@ namespace Nappollen.Uploader.Editor
 
             try
             {
+                Output.Log(nameof(WorldBuilder), $"Builing and Upload...");
+
                 var world = await VRCApi.GetWorld(pipe.blueprintId, true);
                 Output.Log(nameof(WorldBuilder), $"Fetched world '{world.Name}' {world.ID}...");
 
