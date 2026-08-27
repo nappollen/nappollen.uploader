@@ -1,5 +1,7 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
+using BestHTTP;
 using UnityEngine;
 using VRC.Core;
 using VRC.SDK3.Editor;
@@ -32,7 +34,29 @@ namespace Nappollen.Uploader.Editor
     public class WorldBuilder : Builder
     {
         public VRC_SceneDescriptor descriptor;
+
+        // En -batchmode -nographics, EditorApplication.update ne se déclenche jamais,
+        // donc BestHTTP (utilisé par l'API VRChat) ne délivre jamais ses réponses tout seul.
+        // On pompe donc BestHTTP + la file de jobs VRChat sur le main thread pendant TOUT le
+        // build. La tâche de pompe s'entrelace avec les await du SDK (fetch user, GetWorld,
+        // BuildAndUpload…) et fait répondre chaque appel HTTP.
         public override async Task Build()
+        {
+            using var cts = new CancellationTokenSource();
+            var pump = PumpVrcApi(cts.Token);
+            try
+            {
+                await BuildCore();
+            }
+            finally
+            {
+                cts.Cancel();
+                try { await pump; }
+                catch (Exception ex) { Output.Error(nameof(WorldBuilder), $"PumpVrcApi: {ex.Message}"); }
+            }
+        }
+
+        private async Task BuildCore()
         {
             Output.Log(nameof(WorldBuilder), $"Instanting {nameof(VRCSdkControlPanel)}...");
             var window = ScriptableObject.CreateInstance<VRCSdkControlPanel>();
@@ -71,6 +95,9 @@ namespace Nappollen.Uploader.Editor
                 while (!tcs.Task.IsCompleted && elapsed < timeout)
                 {
                     UpdateDelegator.ManagedUpdate();
+                    // En batchmode, EditorApplication.update ne tourne pas : on doit pomper
+                    // BestHTTP manuellement pour que la réponse HTTP soit délivrée.
+                    HTTPManager.OnUpdate();
 
                     await Task.Delay(100);
                     elapsed += 0.1f;
@@ -165,6 +192,30 @@ namespace Nappollen.Uploader.Editor
             {
                 await Task.Delay(100);
                 elapsed += 100;
+            }
+        }
+
+        /// <summary>
+        /// Pompe BestHTTP + la file de jobs VRChat sur le main thread.
+        /// En -batchmode, EditorApplication.update ne se déclenche pas : sans ce pompage,
+        /// l'API VRChat (qui utilise BestHTTP) n'appelle jamais ses callbacks de réponse,
+        /// d'où les timeouts ("User fetch timed out or failed", etc.).
+        /// La tâche s'entrelace avec les autres await sur le main thread (UnitySynchronizationContext).
+        /// </summary>
+        private static async Task PumpVrcApi(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    HTTPManager.OnUpdate();
+                    UpdateDelegator.ManagedUpdate();
+                }
+                catch (Exception ex)
+                {
+                    Output.Error(nameof(WorldBuilder), $"PumpVrcApi: {ex.Message}");
+                }
+                await Task.Delay(50);
             }
         }
 
