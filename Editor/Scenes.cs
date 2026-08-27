@@ -13,7 +13,7 @@ namespace Nappollen.Uploader.Editor
     {
         public static string ScenePath
             => EnvManager.Get("SCENE_PATH", "Assets/OPENME.unity");
-            
+
         [MenuItem("Tools/Uploader/Open Scene")]
         public static void Open()
         {
@@ -22,15 +22,13 @@ namespace Nappollen.Uploader.Editor
             var active = SceneManager.GetActiveScene();
             if (active.isLoaded && active.path == path)
             {
-                Debug.Log($"Scene already open: {path}.");
+                Output.Log(nameof(Scenes), $"Already opened: '{path}'.");
                 return;
             }
-
             var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
             if (!scene.IsValid())
                 throw new Exception($"The scene '{path}' is not valid.");
-
-            Debug.Log($"Scene opened: {path}.");
+            Output.Log(nameof(Scenes), $"Opened: '{path}'.");
         }
     }
 }

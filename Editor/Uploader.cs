@@ -2,6 +2,7 @@ using UnityEditor;
 using System.Threading.Tasks;
 using VRC.SDKBase.Editor;
 using UnityEngine;
+using VRC.SDKBase.Editor.Api;
 
 namespace Nappollen.Uploader.Editor
 {
@@ -27,9 +28,11 @@ namespace Nappollen.Uploader.Editor
 			if (builder == null)
 				throw new BuilderException("Incorrect builder.");
 
-			Debug.Log($"Building with {builder.GetType().FullName}...");
+			
+
+			Output.Log(nameof(UploaderEditor), $"Building with {builder.GetType().FullName}...");
 			await builder.Build();
-			Debug.Log($"Build finished.");
+			Output.Log(nameof(UploaderEditor), "Build finished.");
 		}
 	}
 }

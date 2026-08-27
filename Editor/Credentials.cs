@@ -41,7 +41,7 @@ namespace Nappollen.Uploader.Editor
                 Token,
                 TwoFactorToken
             );
-            Debug.Log($"Credentials imported (Logged as {Human ?? "auto"}).");
+            Output.Log(nameof(Credentials), $"Imported (Logged as {Human ?? "auto"}).");
         }
 
         public static void Export(string path)
@@ -74,11 +74,11 @@ namespace Nappollen.Uploader.Editor
                 "Cancel"
             ))
             {
-                Debug.LogWarning($"You're cancelled exporting credentials.");
+                Output.Warning(nameof(Credentials), "You're cancelled exporting credentials.");
                 return;
             }
             Export(path);
-            Debug.Log($"Exported at {path}.");
+            Output.Log(nameof(Credentials), $"Exported at '{path}'.");
             if (EditorUtility.DisplayDialog(
                 "Export Credentials",
                 $"Credentials exported at {path}, open it ?",

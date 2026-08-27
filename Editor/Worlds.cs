@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
-using UnityEditor;
 using UnityEngine;
+using VRC.Core;
 using VRC.SDK3.Editor;
 using VRC.SDKBase;
 using VRC.SDKBase.Editor;
@@ -34,77 +34,113 @@ namespace Nappollen.Uploader.Editor
         public VRC_SceneDescriptor descriptor;
         public override async Task Build()
         {
-            var window = EditorWindow.GetWindowDontShow<VRCSdkControlPanel>();
+            var window = ScriptableObject.CreateInstance<VRCSdkControlPanel>();
 
             await Task.Delay(5000);
 
             if (!VRCSdkControlPanel.TryGetBuilder(out IVRCSdkWorldBuilderApi builder))
             {
-                Debug.LogError("Impossible d'initialiser le VRCSdkControlPanel (timeout).");
+                Output.Error(nameof(WorldBuilder), "Unable to initialize VRCSdkControlPanel (timeout).");
                 return;
             }
 
             var tcs = new TaskCompletionSource<bool>();
 
-            // --- Événements de Build ---
+            void HandleUserError(ApiModelContainer<APIUser> container)
+            {
+                tcs.TrySetException(new BuilderException($"SDK Error: {container.Error}"));
+            }
+
+            void HandleUserSuccess(ApiModelContainer<APIUser> container)
+            {
+                tcs.TrySetResult(true);
+            }
+
+            try
+            {
+                APIUser.InitialFetchCurrentUser(HandleUserSuccess, HandleUserError);
+                if (!await tcs.Task)
+                    throw new BuilderException("User fetch failed.");
+                Output.Log(nameof(WorldBuilder), $"Fetched user '{APIUser.CurrentUser.displayName}' {APIUser.CurrentUser.id}...");
+            }
+            catch (Exception ex)
+            {
+                Output.Error(nameof(WorldBuilder) + " User", ex.Message);
+                throw ex;
+            }
+
+            tcs = new TaskCompletionSource<bool>();
+
             void HandleBuildError(object sender, string e)
             {
-                tcs.TrySetException(new BuilderException($"Erreur de Build SDK : {e}"));
+                tcs.TrySetException(new BuilderException($"SDK Error: {e}"));
             }
 
             void HandleBuildFinish(object sender, string e)
             {
-                Debug.Log($"Build terminé : {e}");
+                Output.Log(nameof(WorldBuilder) + " Build", $"Finished: {e}");
             }
 
-            // --- Événements d'Upload ---
             void HandleUploadError(object sender, string e)
             {
-                tcs.TrySetException(new BuilderException($"Erreur d'Upload SDK : {e}"));
+                tcs.TrySetException(new BuilderException($"SDK Error: {e}"));
             }
 
             void HandleUploadSuccess(object sender, string e)
             {
-                Debug.Log($"Upload réussi : {e}");
+                Output.Log(nameof(WorldBuilder) + " Upload", $"Success");
                 tcs.TrySetResult(true);
             }
 
             void HandleUploadFinish(object sender, string e)
             {
-                Debug.Log($"Upload terminé : {e}");
-                // Si Success n'est pas appelé, Finish fait foi de conclusion
+                Output.Log(nameof(WorldBuilder) + " Upload", $"Finished: {e}");
                 tcs.TrySetResult(true);
             }
 
             // Abonnement global
             builder.OnSdkBuildError += HandleBuildError;
-            builder.OnSdkBuildFinish += HandleBuildFinish;
             builder.OnSdkUploadError += HandleUploadError;
-            builder.OnSdkUploadSuccess += HandleUploadSuccess;
+            builder.OnSdkBuildFinish += HandleBuildFinish;
             builder.OnSdkUploadFinish += HandleUploadFinish;
+            builder.OnSdkUploadSuccess += HandleUploadSuccess;
+            builder.OnSdkBuildProgress += HandleBuildProgress;
+            builder.OnSdkUploadProgress += HandleUploadProgress;
 
             try
             {
                 var world = await VRCApi.GetWorld(pipe.blueprintId, true);
+                Output.Log(nameof(WorldBuilder), $"Fetched world '{world.Name}' {world.ID}...");
+
+                if (!builder.IsValidBuilder(out var message))
+                    throw new BuilderException(message);
+
                 await BuilderExtension.AddCopyrightAgreement(world.ID);
-                
                 await builder.BuildAndUpload(world);
-                bool success = await tcs.Task;
-                Debug.Log($"Résultat global du Build & Upload : {success}");
+                if (!await tcs.Task)
+                    throw new BuilderException("Build and upload failed.");
             }
             catch (Exception ex)
             {
-                Debug.LogError($"Échec de la procédure : {ex.Message}");
+                Output.Error(nameof(WorldBuilder) + "Build/Upload", ex.Message);
+                throw ex;
             }
             finally
             {
-                // Nettoyage de l'ensemble des handlers
                 builder.OnSdkBuildError -= HandleBuildError;
                 builder.OnSdkBuildFinish -= HandleBuildFinish;
                 builder.OnSdkUploadError -= HandleUploadError;
                 builder.OnSdkUploadSuccess -= HandleUploadSuccess;
                 builder.OnSdkUploadFinish -= HandleUploadFinish;
+                builder.OnSdkBuildProgress -= HandleBuildProgress;
+                builder.OnSdkUploadProgress -= HandleUploadProgress;
             }
         }
+
+        private void HandleUploadProgress(object sender, (string status, float percentage) e)
+            => Output.Log(nameof(WorldBuilder) + " Upload", $"{e.percentage}: {e.status}");
+
+        private void HandleBuildProgress(object sender, string e)
+            => Output.Log(nameof(WorldBuilder) + " Build", $"{e}");
     }
 }

@@ -8,19 +8,19 @@ namespace Nappollen.Uploader.Editor
     {
         public static async void RunBuild()
         {
-            Debug.Log("[BatchMode] Lancement du processus de build VRCSdk...");
+            Output.Log(nameof(BatchBuildRunner), "Starting the VRCSdk build process...");
 
             try
             {
                 // Appel direct si UploaderEditor et Build() sont statiques
                 await UploaderEditor.Build();
 
-                Debug.Log("[BatchMode] Build et Upload terminés avec succès.");
+                Output.Log(nameof(BatchBuildRunner), "Build and upload completed successfully.");
                 EditorApplication.Exit(0);
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[BatchMode] Échec critique du build : {ex.Message}");
+                Output.Error(nameof(BatchBuildRunner), $"Critical build failure: {ex.Message}");
                 EditorApplication.Exit(1);
             }
         }
