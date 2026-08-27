@@ -58,6 +58,7 @@ namespace Nappollen.Uploader.Editor
 
             try
             {
+                API.SetOnlineMode(true);
                 APIUser.InitialFetchCurrentUser(HandleUserSuccess, HandleUserError);
                 if (!await tcs.Task)
                     throw new BuilderException("User fetch failed.");
