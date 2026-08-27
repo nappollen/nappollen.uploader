@@ -7,10 +7,17 @@ namespace Nappollen.Uploader.Editor
     {
         public static string Get(string key, string defaultValue = null)
         {
+            // 1. Recherche dans les arguments de ligne de commande (ex: -sceneBlueprint <valeur>)
+            var argValue = ReadKeyFromCommandLine(key);
+            if (!string.IsNullOrEmpty(argValue))
+                return argValue;
+
+            // 2. Recherche dans les variables d'environnement du système
             var value = Environment.GetEnvironmentVariable(key);
             if (!string.IsNullOrEmpty(value))
                 return value;
 
+            // 3. Recherche dans un fichier .env local
             value = ReadKeyFromDotEnv(key);
             if (!string.IsNullOrEmpty(value))
                 return value;
@@ -20,6 +27,17 @@ namespace Nappollen.Uploader.Editor
 
         public static bool Has(string key) 
             => !string.IsNullOrEmpty(Get(key));
+
+        private static string ReadKeyFromCommandLine(string targetKey)
+        {
+            string[] args = Environment.GetCommandLineArgs();
+            string targetFlag = "-" + targetKey;
+
+            for (int i = 0; i < args.Length - 1; i++)
+                if (string.Equals(args[i], targetFlag, StringComparison.OrdinalIgnoreCase))
+                    return CleanQuotes(args[i + 1]);
+            return null;
+        }
 
         private static string ReadKeyFromDotEnv(string key)
         {
