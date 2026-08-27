@@ -60,17 +60,31 @@ namespace Nappollen.Uploader.Editor
 
             try
             {
-                Output.Log(nameof(WorldBuilder), $"Make API in Online Mode...");
+                Output.Log(nameof(WorldBuilder), "Make API in Online Mode...");
                 API.SetOnlineMode(true);
+
                 APIUser.InitialFetchCurrentUser(HandleUserSuccess, HandleUserError);
-                if (!await tcs.Task)
-                    throw new BuilderException("User fetch failed.");
+
+                // Attente active sécurisée avec timeout (ex: 15 secondes max)
+                float timeout = 20f;
+                float elapsed = 0f;
+                while (!tcs.Task.IsCompleted && elapsed < timeout)
+                {
+                    UpdateDelegator.ManagedUpdate();
+
+                    await Task.Delay(100);
+                    elapsed += 0.1f;
+                }
+
+                if (!tcs.Task.IsCompleted || !await tcs.Task)
+                    throw new BuilderException("User fetch timed out or failed.");
+
                 Output.Log(nameof(WorldBuilder), $"Fetched user '{APIUser.CurrentUser.displayName}' {APIUser.CurrentUser.id}...");
             }
             catch (Exception ex)
             {
                 Output.Error(nameof(WorldBuilder) + " User", ex.Message);
-                throw ex;
+                throw;
             }
 
             tcs = new TaskCompletionSource<bool>();
@@ -140,6 +154,17 @@ namespace Nappollen.Uploader.Editor
                 builder.OnSdkUploadFinish -= HandleUploadFinish;
                 builder.OnSdkBuildProgress -= HandleBuildProgress;
                 builder.OnSdkUploadProgress -= HandleUploadProgress;
+            }
+        }
+
+        // Remplacer l'attente par une fonction qui laisse tourner Unity
+        private static async Task WaitUntilOrTimeout(Func<bool> condition, int timeoutMs)
+        {
+            int elapsed = 0;
+            while (!condition() && elapsed < timeoutMs)
+            {
+                await Task.Delay(100);
+                elapsed += 100;
             }
         }
 
